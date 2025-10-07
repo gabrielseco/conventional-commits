@@ -14,6 +14,8 @@ export async function generateAIMessage(
 
   const client = new Anthropic({ apiKey });
 
+  console.log('🔌 Calling Anthropic API...');
+
   // Get the full diff
   const diffProc = Bun.spawn(["git", "diff", "--cached"], {
     stdout: "pipe",
@@ -37,7 +39,7 @@ Git diff:
 ${diff.slice(0, 8000)}${diff.length > 8000 ? "\n... (truncated)" : ""}`;
 
   const message = await client.messages.create({
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-3-7-sonnet-20250219",
     max_tokens: 100,
     messages: [
       {

@@ -7,6 +7,7 @@ import { executeCommit } from "./git";
 async function main() {
   const args = process.argv.slice(2);
   const useAI = args.includes("--ai");
+  console.log('🔍 Args:', args, '| useAI:', useAI);
 
   try {
     // Check if we're in a git repo
