@@ -1,5 +1,5 @@
 import type { DiffAnalysis } from './analyzer';
-import { generateAIMessage } from './ai';
+import { generateAICommit } from './ai';
 
 const COMMIT_TYPES = [
   'feat',
@@ -28,11 +28,34 @@ export async function promptUser(
   }
   console.log(`   +${analysis.stats.additions} -${analysis.stats.deletions}\n`);
 
+  let suggestedType = analysis.suggestedType;
+  let suggestedScope = analysis.suggestedScope;
+  let suggestedMessage = analysis.suggestedMessage;
+
+  // If AI is enabled, get AI suggestions for everything
+  if (useAI) {
+    console.log('🤖 Generating AI suggestions for type, scope, and message...');
+    try {
+      const aiSuggestion = await generateAICommit(analysis);
+      suggestedType = aiSuggestion.type;
+      suggestedScope = aiSuggestion.scope;
+      suggestedMessage = aiSuggestion.message;
+
+      console.log(`✨ AI suggested:`);
+      console.log(`   Type: ${suggestedType}`);
+      console.log(`   Scope: ${suggestedScope || '(none)'}`);
+      console.log(`   Message: ${suggestedMessage}\n`);
+    } catch (error) {
+      console.log(`⚠️  AI generation failed: ${error instanceof Error ? error.message : error}`);
+      console.log(`Falling back to local suggestions\n`);
+    }
+  }
+
   // Prompt for type
-  console.log(`Suggested type: ${analysis.suggestedType}`);
+  console.log(`Suggested type: ${suggestedType}`);
   console.log(`Available: ${COMMIT_TYPES.join(', ')}`);
   const typeInput = prompt('Commit type (press Enter for suggestion):');
-  const type = typeInput?.trim() || analysis.suggestedType;
+  const type = typeInput?.trim() || suggestedType;
 
   if (!COMMIT_TYPES.includes(type)) {
     console.log(`⚠️  Warning: '${type}' is not a standard conventional commit type`);
@@ -40,26 +63,14 @@ export async function promptUser(
 
   // Prompt for scope
   const scopeInput = prompt(
-    `Scope${analysis.suggestedScope ? ` (suggested: ${analysis.suggestedScope})` : ''} (optional):`
+    `Scope${suggestedScope ? ` (suggested: ${suggestedScope})` : ''} (optional):`
   );
-  const scope = scopeInput?.trim() || analysis.suggestedScope;
+  const scope = scopeInput?.trim() || suggestedScope;
 
   // Prompt for message
-  let suggestedMessage = analysis.suggestedMessage;
-
-  if (useAI) {
-    console.log('\n🤖 Generating AI suggestion...');
-    try {
-      suggestedMessage = await generateAIMessage(analysis);
-      console.log(`AI suggested: ${suggestedMessage}\n`);
-    } catch (error) {
-      console.log(`⚠️  AI generation failed: ${error instanceof Error ? error.message : error}`);
-      console.log(`Falling back to local suggestion: ${suggestedMessage}\n`);
-    }
-  } else {
+  if (!useAI) {
     console.log(`Suggested message: ${suggestedMessage}`);
   }
-
   const messageInput = prompt('Commit message (press Enter for suggestion):');
   const message = messageInput?.trim() || suggestedMessage;
 

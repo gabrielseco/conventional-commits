@@ -1,9 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { DiffAnalysis } from "./analyzer";
 
-export async function generateAIMessage(
+export interface AICommitSuggestion {
+  type: string;
+  scope: string;
+  message: string;
+}
+
+export async function generateAICommit(
   analysis: DiffAnalysis
-): Promise<string> {
+): Promise<AICommitSuggestion> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
@@ -14,33 +20,65 @@ export async function generateAIMessage(
 
   const client = new Anthropic({ apiKey });
 
-  console.log('🔌 Calling Anthropic API...');
+  console.log('🔌 Calling Anthropic API for full commit analysis...');
 
   // Get the full diff
   const diffProc = Bun.spawn(["git", "diff", "--cached"], {
     stdout: "pipe",
   });
   const diff = await new Response(diffProc.stdout).text();
-  const prompt = `You are a commit message generator. Analyze this git diff and generate a concise commit message that describes what changed and why.
 
-Rules:
-- Return ONLY the commit message text (no type or scope prefix)
-- Keep it under 60 characters if possible
-- Focus on WHAT changed and WHY (not HOW)
-- Use imperative mood (e.g., "add feature" not "added feature")
-- Be specific but concise
+  // Get file list for context
+  const fileList = analysis.files.join('\n');
 
-Example good messages:
-- "add user authentication"
-- "fix memory leak in parser"
-- "update API to v2 spec"
+  const prompt = `You are an expert at analyzing code changes and generating conventional commit messages. Analyze this git diff and generate a proper conventional commit.
 
-Git diff:
-${diff.slice(0, 8000)}${diff.length > 8000 ? "\n... (truncated)" : ""}`;
+**Changed files:**
+${fileList}
 
-  const message = await client.messages.create({
+**Statistics:**
++${analysis.stats.additions} -${analysis.stats.deletions}
+
+**Git diff:**
+${diff.slice(0, 8000)}${diff.length > 8000 ? "\n... (truncated)" : ""}
+
+Generate a conventional commit with these components:
+
+1. **Type** - Choose ONE from: feat, fix, docs, style, refactor, perf, test, build, ci, chore
+   - feat: New feature
+   - fix: Bug fix
+   - docs: Documentation only
+   - style: Formatting, no code change
+   - refactor: Code change that neither fixes bug nor adds feature
+   - perf: Performance improvement
+   - test: Adding or updating tests
+   - build: Build system or dependencies
+   - ci: CI configuration
+   - chore: Other changes (configs, tooling)
+
+2. **Scope** - A short noun describing the affected module/component (optional but recommended)
+   - Examples: api, auth, parser, ui, database, config
+   - Use kebab-case (lowercase with hyphens)
+   - Leave empty if change affects multiple unrelated areas
+
+3. **Message** - A concise description
+   - Use imperative mood: "add" not "added"
+   - No period at end
+   - Under 60 characters preferred
+   - Focus on WHAT and WHY, not HOW
+
+**Return format (JSON):**
+{
+  "type": "feat",
+  "scope": "auth",
+  "message": "add OAuth2 authentication"
+}
+
+Return ONLY valid JSON, nothing else.`;
+
+  const response = await client.messages.create({
     model: "claude-3-7-sonnet-20250219",
-    max_tokens: 100,
+    max_tokens: 200,
     messages: [
       {
         role: "user",
@@ -50,6 +88,38 @@ ${diff.slice(0, 8000)}${diff.length > 8000 ? "\n... (truncated)" : ""}`;
   });
 
   const text =
-    message.content[0].type === "text" ? message.content[0].text : "";
-  return text.trim().replace(/^["']|["']$/g, ""); // Remove quotes if present
+    response.content[0].type === "text" ? response.content[0].text : "";
+
+  console.log('🔍 API response:', text);
+
+  // Parse the JSON response
+  try {
+    const parsed = JSON.parse(text.trim());
+    return {
+      type: parsed.type || "feat",
+      scope: parsed.scope || "",
+      message: parsed.message || "update code",
+    };
+  } catch (error) {
+    console.log('⚠️  Failed to parse AI response, attempting to extract...');
+
+    // Fallback: try to extract from text
+    const typeMatch = text.match(/"type"\s*:\s*"([^"]+)"/);
+    const scopeMatch = text.match(/"scope"\s*:\s*"([^"]*)"/);
+    const messageMatch = text.match(/"message"\s*:\s*"([^"]+)"/);
+
+    return {
+      type: typeMatch ? typeMatch[1] : analysis.suggestedType,
+      scope: scopeMatch ? scopeMatch[1] : analysis.suggestedScope,
+      message: messageMatch ? messageMatch[1] : analysis.suggestedMessage,
+    };
+  }
+}
+
+// Legacy function for backwards compatibility (now just calls the new one)
+export async function generateAIMessage(
+  analysis: DiffAnalysis
+): Promise<string> {
+  const result = await generateAICommit(analysis);
+  return result.message;
 }
