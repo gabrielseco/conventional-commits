@@ -92,9 +92,23 @@ Return ONLY valid JSON, nothing else.`;
 
   console.log('🔍 API response:', text);
 
-  // Parse the JSON response
+  // Parse the JSON response - handle markdown code fences and extra text
+  let cleanedText = text.trim();
+
+  // Remove markdown code fences if present
+  const jsonMatch = cleanedText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (jsonMatch) {
+    cleanedText = jsonMatch[1].trim();
+  }
+
+  // Try to extract just the JSON object if there's surrounding text
+  const objectMatch = cleanedText.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    cleanedText = objectMatch[0];
+  }
+
   try {
-    const parsed = JSON.parse(text.trim());
+    const parsed = JSON.parse(cleanedText);
     return {
       type: parsed.type || "feat",
       scope: parsed.scope || "",
@@ -103,7 +117,7 @@ Return ONLY valid JSON, nothing else.`;
   } catch (error) {
     console.log('⚠️  Failed to parse AI response, attempting to extract...');
 
-    // Fallback: try to extract from text
+    // Fallback: try to extract from text using regex
     const typeMatch = text.match(/"type"\s*:\s*"([^"]+)"/);
     const scopeMatch = text.match(/"scope"\s*:\s*"([^"]*)"/);
     const messageMatch = text.match(/"message"\s*:\s*"([^"]+)"/);
