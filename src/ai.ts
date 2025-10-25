@@ -20,8 +20,6 @@ export async function generateAICommit(
 
   const client = new Anthropic({ apiKey });
 
-  console.log('🔌 Calling Anthropic API for full commit analysis...');
-
   // Get the full diff
   const diffProc = Bun.spawn(["git", "diff", "--cached"], {
     stdout: "pipe",
@@ -89,8 +87,6 @@ Return ONLY valid JSON, nothing else.`;
 
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
-
-  console.log('🔍 API response:', text);
 
   // Parse the JSON response - handle markdown code fences and extra text
   let cleanedText = text.trim();

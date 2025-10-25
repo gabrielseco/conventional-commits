@@ -34,23 +34,18 @@ export async function promptUser(
 
   // If AI is enabled, get AI suggestions for everything
   if (useAI) {
-    console.log('🤖 Generating AI suggestions for type, scope, and message...');
+    console.log('🤖 Analyzing changes with AI...');
     try {
       const aiSuggestion = await generateAICommit(analysis);
       suggestedType = aiSuggestion.type;
       suggestedScope = aiSuggestion.scope;
       suggestedMessage = aiSuggestion.message;
 
-      console.log(`✨ AI suggested:`);
-      console.log(`   Type: ${suggestedType}`);
-      console.log(`   Scope: ${suggestedScope || '(none)'}`);
-      console.log(`   Message: ${suggestedMessage}\n`);
-
       // Show complete formatted commit
       const fullCommit = suggestedScope
         ? `${suggestedType}(${suggestedScope}): ${suggestedMessage}`
         : `${suggestedType}: ${suggestedMessage}`;
-      console.log(`📋 Suggested commit: ${fullCommit}\n`);
+      console.log(`✨ Suggested: ${fullCommit}\n`);
 
       const acceptAI = prompt('Accept this commit? (Y/n):');
       if (!acceptAI || acceptAI.toLowerCase() !== 'n') {
