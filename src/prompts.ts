@@ -45,6 +45,19 @@ export async function promptUser(
       console.log(`   Type: ${suggestedType}`);
       console.log(`   Scope: ${suggestedScope || '(none)'}`);
       console.log(`   Message: ${suggestedMessage}\n`);
+
+      // Show complete formatted commit
+      const fullCommit = suggestedScope
+        ? `${suggestedType}(${suggestedScope}): ${suggestedMessage}`
+        : `${suggestedType}: ${suggestedMessage}`;
+      console.log(`📋 Suggested commit: ${fullCommit}\n`);
+
+      const acceptAI = prompt('Accept this commit? (Y/n):');
+      if (!acceptAI || acceptAI.toLowerCase() !== 'n') {
+        return { type: suggestedType, scope: suggestedScope, message: suggestedMessage };
+      }
+
+      console.log('\n✏️  Let\'s customize the commit...\n');
     } catch (error) {
       console.log(`⚠️  AI generation failed: ${error instanceof Error ? error.message : error}`);
       console.log(`Falling back to local suggestions\n`);
