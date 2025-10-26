@@ -27,7 +27,7 @@ export async function generateAICommit(
   const diff = await new Response(diffProc.stdout).text();
 
   // Get file list for context
-  const fileList = analysis.files.join('\n');
+  const fileList = analysis.files.join("\n");
 
   const prompt = `You are an expert at analyzing code changes and generating conventional commit messages. Analyze this git diff and generate a proper conventional commit.
 
@@ -75,7 +75,7 @@ Generate a conventional commit with these components:
 Return ONLY valid JSON, nothing else.`;
 
   const response = await client.messages.create({
-    model: "claude-3-7-sonnet-20250219",
+    model: "claude-haiku-4-20250514",
     max_tokens: 200,
     messages: [
       {
@@ -111,7 +111,7 @@ Return ONLY valid JSON, nothing else.`;
       message: parsed.message || "update code",
     };
   } catch (error) {
-    console.log('⚠️  Failed to parse AI response, attempting to extract...');
+    console.log("⚠️  Failed to parse AI response, attempting to extract...");
 
     // Fallback: try to extract from text using regex
     const typeMatch = text.match(/"type"\s*:\s*"([^"]+)"/);
